@@ -20,18 +20,23 @@ import System.Environment (getArgs)
 -- NOTE: The following code does what's needed of PA1, However 
 -- it is terribly written, primarily because I am still trying to
 -- get over the "imperitive thinking".
+--
 -- TODO:
--- * get rid of all the nested parens, use $ and . as appropriately
 -- * reduce should not return IO Lexp. Change it back to the way
 --   PA1Helper expects (Lexp -> Lexp)
--- * Simplify alpha_rename to use functional thinking, currently
---   it is essentially an impertive routine (specially for the case 
---   of an Apply expression).
--- * Currently idx variable to alpha_rename assumes no more than 10
---   rename operations in a sub expression of an Apply. This should 
---   be fixed. One way to do it would be to have the alpha_rename 
---   function return the value of next idx. This should fix the issue
---   but it is still imperitive. Need to figure out a functional way
+-- * get rid of all the nested parens, use $ and . as appropriate
+--
+-- * Fixes to alpha_rename_all:
+-- NOTE: This function is not used anymore so it is okay even if we 
+-- don't fix it.
+--      * Simplify alpha_rename_all to use functional thinking, currently
+--        it is essentially an impertive routine (specially for the case 
+--        of an Apply expression).
+--      * Currently idx variable to alpha_rename assumes no more than 10
+--        rename operations in a sub expression of an Apply. This should 
+--        be fixed. One way to do it would be to have the alpha_rename 
+--        function return the value of next idx. This should fix the issue
+--        but it is still imperitive. Need to figure out a functional way
 
 -- remove and free vars are from lecture sample, and are straight forward.
 --remove
@@ -48,10 +53,13 @@ freevars (Apply e1 e2)       = (freevars e1)++(freevars e2)
 -- We plan to do it in a few hours :D
 reduce_setup :: Lexp -> IO Lexp
 reduce_setup lexp = do
-    let lexp' = (alpha_rename lexp 0)
-    lexp'' <- reduce lexp'
-    putStrLn ((show lexp) ++ " => " ++ (show lexp') ++ " => " ++ (show lexp''))
-    return lexp''
+    --let lexp' = (alpha_rename lexp 0)
+    --lexp'' <- reduce lexp'
+    --putStrLn ((show lexp) ++ " => " ++ (show lexp') ++ " => " ++ (show lexp''))
+    --return lexp''
+    lexp' <- reduce lexp
+    putStrLn ((show lexp) ++ " => " ++ (show lexp'))
+    return lexp'
 
 -- reduce
 -- We have the following cases for reduction
@@ -115,8 +123,25 @@ beta_reduce var val e@(Atom v)
             | otherwise = e
 beta_reduce var val (Apply expr1 expr2) = Apply (beta_reduce var val expr1) (beta_reduce var val expr2)
 beta_reduce var val expr@(Lambda var' expr')
-            | var' /= var = Lambda var' (beta_reduce var val expr')
+            | var' /= var && var' `notElem` (freevars val) = Lambda var' (beta_reduce var val expr')
+            | var' /= var && var' `elem` (freevars val) = beta_reduce var val (alpha_rename expr (freevars val))
             | otherwise = expr 
+
+
+-- better alpha rename
+-- before a beta reduction, get all free variables in m
+-- go through all lambdas, changing variable names if they are found
+-- in free vars (and adding their own variable name to a list)
+-- this list would be returned (when chosing a replacement, make sure it is
+-- not already in freevars array)
+-- finally beta reduce properly
+
+-- new_name
+-- returns new name for a lambda variable
+-- Arguments:   x: original name (the one that already apperas in 'bad_names')
+--              bad_names: the names that we want to avoid (freevars)
+new_name :: String->[String]->String
+new_name x bad_names = head (dropWhile (`elem` bad_names) [(x ++ (show i)) | i <- [1..]])
 
 -- eta_convert
 -- Arguments:   lexp: The full expression i.e. \x.(E M)
@@ -134,33 +159,36 @@ eta_convert lexp x e m@(Atom v)
 eta_convert lexp x e m = lexp
 
 
--- alpha_rename
--- Performs alpha renaming recursively.
+-- alpha_rename_all
+-- Performs alpha renaming recursively, renaming all lambdas weather needed or not
 -- Arguments:   lexp: the expression to alpha_rename
 --              idx: index to appent to the variables of lambdas
 -- Following cases:
 --  * v or Atom: no alpha renaming possible
 --  * (e1 e2) or Apply: recursively alpha_rename e1 and e2
 --  * \x.e or Lambda: recursively alpha_rename e and then change instances of x in e with (x ++ (show idex))
-alpha_rename :: Lexp->Integer->Lexp
-alpha_rename lexp@(Atom _) idx = lexp
-alpha_rename (Apply e1 e2) idx = (Apply (alpha_rename e1 idx) (alpha_rename e2 (idx+10) )) -- this is kind of  a hack, what if alpha_renaming expression 1 uses up more than 10 of indices? but for this assignment, it should work fine
-alpha_rename (Lambda x e) idx = (Lambda 
+-- NOTE: This is not used anywhere right now, initially I used to rename
+-- all lambdas whether they needed renaming or not. But I am leavin git here
+-- because "respect the dead".
+alpha_rename_all :: Lexp->Integer->Lexp
+alpha_rename_all lexp@(Atom _) idx = lexp
+alpha_rename_all (Apply e1 e2) idx = (Apply (alpha_rename_all e1 idx) (alpha_rename_all e2 (idx+10) )) -- this is kind of  a hack, what if alpha_renaming expression 1 uses up more than 10 of indices? but for this assignment, it should work fine
+alpha_rename_all (Lambda x e) idx = (Lambda 
     (x ++ (show idx)) 
     (beta_reduce 
         x 
         (Atom (x++(show idx))) 
-        (alpha_rename e (idx+1)) 
+        (alpha_rename_all e (idx+1)) 
         ) 
     )
 
--- alpha_rename_simple
--- Given a lambda expression \x.e, changes all instances of x in e with y
--- NOTE: right now this is not used anywhere, but once we implement alpha renaming only when required, this might
--- come in handy, therefore I am keeping it in the code
-alpha_rename_simple :: Lexp->String->Lexp
-alpha_rename_simple (Lambda x e) y = (Lambda y (beta_reduce x (Atom y) e)) 
-alpha_rename_simple lexp y = lexp
+-- alpha_rename
+-- Given a lambda expression \x.e, changes x to something that does not appear in bad_names
+-- Arguments:   first argument: the lambda expression
+--              bad_names: list of names that we want to avoid (these are the free variables)
+alpha_rename:: Lexp->[String]->Lexp
+alpha_rename (Lambda x e) bad_names = (Lambda (new_name x bad_names) (beta_reduce x (Atom (new_name x bad_names)) e)) 
+alpha_rename lexp bad_names = lexp
 
 
 -- Entry point of program
