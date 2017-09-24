@@ -28,7 +28,15 @@ freevars (Apply e1 e2)       = (freevars e1)++(freevars e2)
 
 iscombinator :: Lexp -> Bool
 iscombinator e = freevars e == []
--- MAKE ALL FUNCTIONS IO MONAD AND PRINT WHATEVER THEY RECEIVE
+
+-- we alpha-rename everything in the very start
+reduce_setup :: Lexp -> IO Lexp
+reduce_setup lexp = do
+    let lexp' = (alpha_rename lexp 0)
+    lexp'' <- reduce lexp'
+    putStrLn ((show lexp) ++ " => " ++ (show lexp') ++ " => " ++ (show lexp''))
+    return lexp''
+
 -- Cases
 -- beta reduction (application with first member as lambda)
 -- eta conversion (lambda with expression as application)
@@ -78,19 +86,36 @@ eta_convert lexp x e m@(Atom v)
 eta_convert lexp x e m = lexp
 
 
--- Entry point of program
--- main = do
---     args <- getArgs
---     let filename = case args of { [x] -> x; _ -> "input.lambda" }
---     -- id' simply returns its input, so runProgram will result
---     -- in printing each lambda expression twice. 
---     runProgram filename reduce
+alpha_rename :: Lexp->Integer->Lexp
+alpha_rename lexp@(Atom _) idx = lexp
+alpha_rename (Apply e1 e2) idx = (Apply (alpha_rename e1 idx) (alpha_rename e2 (idx+10) )) -- this is kind of  a hack, what if alpha_renaming expression 1 uses up more than 10 of indices? but for this assignment, it should work fine
+alpha_rename (Lambda x e) idx = (Lambda 
+    (x ++ (show idx)) 
+    (beta_reduce 
+        x 
+        (Atom (x++(show idx))) 
+        (alpha_rename e (idx+1)) 
+        ) 
+    )
 
+alpha_rename_simple :: Lexp->String->Lexp
+alpha_rename_simple (Lambda x e) y = (Lambda y (beta_reduce x (Atom y) e)) 
+alpha_rename_simple lexp y = lexp
+
+
+-- Entry point of program
 main = do
     args <- getArgs
-    let expr =  (case args of
-                    [] -> "(\\x.x y)"
-                    [s]-> s)
+    let filename = case args of { [x] -> x; _ -> "input.lambda" }
+    -- id' simply returns its input, so runProgram will result
+    -- in printing each lambda expression twice. 
+    runProgram filename reduce_setup
+
+-- main = do
+--     args <- getArgs
+--     let expr =  (case args of
+--                     [] -> "(\\x.x y)"
+--                     [s]-> s)
     
     
-    runProgram expr reduce
+--     runProgram expr reduce_setup

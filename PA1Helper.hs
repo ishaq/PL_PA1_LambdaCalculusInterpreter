@@ -107,13 +107,13 @@ outputPrinter n lexp lexp' = do
 
 -- Given a filename and function for reducing lambda expressions,
 -- reduce all valid lambda expressions in the file and output results.
--- runProgram :: String -> (Lexp -> Lexp) -> IO ()
--- runProgram fileName reducer = do
---     fcontents <- readFile fileName
---     let inList = lines fcontents
---     sequence_ (zipWith (handler reducer) [1..] inList)
-
 runProgram :: String -> (Lexp -> IO Lexp) -> IO ()
-runProgram expr reducer = do
-  handler reducer 0 expr
+runProgram fileName reducer = do
+    fcontents <- readFile fileName
+    let inList = lines fcontents
+    sequence_ (zipWith (handler reducer) [1..] inList)
+
+-- runProgram :: String -> (Lexp -> IO Lexp) -> IO ()
+-- runProgram expr reducer = do
+--   handler reducer 0 expr
 
