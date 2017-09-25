@@ -8,15 +8,6 @@ import System.Environment (getArgs)
 -- reduce all valid lambda expressions in the file and output results.
 -- runProgram :: String -> (Lexp -> Lexp) -> IO ()
 
--- This is the identity function for the Lexp datatype, which is
--- used to illustrate pattern matching with the datatype. "_" was
--- used since I did not need to use bound variable. For your code,
--- however, you can replace "_" with an actual variable name so you
--- can use the bound variable. The "@" allows you to retain a variable
--- that represents the entire structure, while pattern matching on
--- components of the structure.
-
-
 -- NOTE: The following code does what's needed of PA1, However 
 -- it is terribly written, primarily because I am still trying to
 -- get over the "imperitive thinking".
