@@ -28,7 +28,7 @@ freevars (Apply e1 e2)       = (freevars e1)++(freevars e2)
 --    * \x.e or Lambda without Apply: We recursively reduce e in Lambda
 reduce :: Lexp -> Lexp
 reduce lexp@(Atom _)                = lexp
-reduce lexp@(Apply (Lambda x e) e2) = reduce_helper lexp $ beta_reduce x e2 e
+reduce lexp@(Apply (Lambda x e) e2) = reduce_helper lexp $ beta_reduce x (reduce e2) e
 reduce lexp@(Apply e1 e2)           = reduce_helper lexp $ Apply (reduce e1) $ reduce e2
 reduce lexp@(Lambda x (Apply e m))  = reduce_helper lexp $ eta_convert lexp x e m
 reduce lexp@(Lambda x e)            = reduce_helper lexp $ Lambda x $ reduce e
