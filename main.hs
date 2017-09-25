@@ -49,18 +49,6 @@ freevars (Atom s)            = [s]
 freevars (Lambda v e)        = remove v (freevars e)
 freevars (Apply e1 e2)       = (freevars e1)++(freevars e2)
 
--- We alpha rename everything in the very start, this is wasteful and should be changed.
--- We plan to do it in a few hours :D
-reduce_setup :: Lexp -> IO Lexp
-reduce_setup lexp = do
-    --let lexp' = (alpha_rename lexp 0)
-    --lexp'' <- reduce lexp'
-    --putStrLn ((show lexp) ++ " => " ++ (show lexp') ++ " => " ++ (show lexp''))
-    --return lexp''
-    lexp' <- reduce lexp
-    putStrLn ((show lexp) ++ " => " ++ (show lexp'))
-    return lexp'
-
 -- reduce
 -- We have the following cases for reduction
 --    * v or Atom: can't reduce it further so we just return it
@@ -127,22 +115,6 @@ beta_reduce var val expr@(Lambda var' expr')
             | var' /= var && var' `elem` (freevars val) = beta_reduce var val (alpha_rename expr (freevars val))
             | otherwise = expr 
 
-
--- better alpha rename
--- before a beta reduction, get all free variables in m
--- go through all lambdas, changing variable names if they are found
--- in free vars (and adding their own variable name to a list)
--- this list would be returned (when chosing a replacement, make sure it is
--- not already in freevars array)
--- finally beta reduce properly
-
--- new_name
--- returns new name for a lambda variable
--- Arguments:   x: original name (the one that already apperas in 'bad_names')
---              bad_names: the names that we want to avoid (freevars)
-new_name :: String->[String]->String
-new_name x bad_names = head (dropWhile (`elem` bad_names) [(x ++ (show i)) | i <- [1..]])
-
 -- eta_convert
 -- Arguments:   lexp: The full expression i.e. \x.(E M)
 --              x: x in \x.(E M)
@@ -158,6 +130,42 @@ eta_convert lexp x e m@(Atom v)
             | otherwise = lexp
 eta_convert lexp x e m = lexp
 
+-- alpha_rename
+-- Given a lambda expression \x.e, changes x to something that does not appear in bad_names
+-- Arguments:   first argument: the lambda expression
+--              bad_names: list of names that we want to avoid (these are the free variables)
+alpha_rename:: Lexp->[String]->Lexp
+alpha_rename (Lambda x e) bad_names = (Lambda (new_name x bad_names) (beta_reduce x (Atom (new_name x bad_names)) e)) 
+alpha_rename lexp bad_names = lexp
+
+-- new_name
+-- returns new name for a lambda variable
+-- Arguments:   x: original name (the one that already apperas in 'bad_names')
+--              bad_names: the names that we want to avoid (freevars)
+new_name :: String->[String]->String
+new_name x bad_names = head (dropWhile (`elem` bad_names) [(x ++ (show i)) | i <- [1..]])
+
+
+-- Entry point of program
+main = do
+    args <- getArgs
+    let filename = case args of { [x] -> x; _ -> "input.lambda" }
+    -- id' simply returns its input, so runProgram will result
+    -- in printing each lambda expression twice. 
+    runProgram filename reduce
+
+
+-- UNUSED FUNCTIONS: You can ignore anything after this line
+-- These functions are not used anymore, these are here because they served
+-- us well in the past. "Honour the dead"
+
+-- We alpha rename everything in the very start, this is wasteful and should be changed.
+reduce_setup :: Lexp -> IO Lexp
+reduce_setup lexp = do
+    let lexp' = (alpha_rename_all lexp 0)
+    lexp'' <- reduce lexp'
+    putStrLn ((show lexp) ++ " => " ++ (show lexp') ++ " => " ++ (show lexp''))
+    return lexp''
 
 -- alpha_rename_all
 -- Performs alpha renaming recursively, renaming all lambdas weather needed or not
@@ -181,23 +189,6 @@ alpha_rename_all (Lambda x e) idx = (Lambda
         (alpha_rename_all e (idx+1)) 
         ) 
     )
-
--- alpha_rename
--- Given a lambda expression \x.e, changes x to something that does not appear in bad_names
--- Arguments:   first argument: the lambda expression
---              bad_names: list of names that we want to avoid (these are the free variables)
-alpha_rename:: Lexp->[String]->Lexp
-alpha_rename (Lambda x e) bad_names = (Lambda (new_name x bad_names) (beta_reduce x (Atom (new_name x bad_names)) e)) 
-alpha_rename lexp bad_names = lexp
-
-
--- Entry point of program
-main = do
-    args <- getArgs
-    let filename = case args of { [x] -> x; _ -> "input.lambda" }
-    -- id' simply returns its input, so runProgram will result
-    -- in printing each lambda expression twice. 
-    runProgram filename reduce_setup
 
 -- main = do
 --     args <- getArgs
