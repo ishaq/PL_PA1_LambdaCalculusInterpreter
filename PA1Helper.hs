@@ -92,22 +92,21 @@ parseLExpr :: String -> Either ParseError Lexp
 parseLExpr input = parse start "" input
 
 -- Gracefully handle parse errors, proceeding to the next expression in the file and printing a helpful message
-handler :: (Lexp -> IO Lexp) -> Int -> String -> IO ()
+handler :: (Lexp -> Lexp) -> Int -> String -> IO ()
 handler reducer n str = case parseLExpr str of
     Left err -> putStrLn ("Parse error for expression " ++ show n ++ ": " ++ show err)
     Right lexp -> outputPrinter n lexp (reducer lexp)
 
 -- Pretty printer for outputting inputted lambda expressions along with
 -- their reduced expressions. Integer used to distiguish between test cases.
-outputPrinter :: Int -> Lexp -> IO Lexp -> IO ()
+outputPrinter :: Int -> Lexp -> Lexp -> IO ()
 outputPrinter n lexp lexp' = do
     putStrLn ("Input " ++ (show n) ++ ": " ++ (show lexp))
-    lexp'' <- lexp'
-    putStrLn ("Result " ++ (show n) ++ ": " ++ (show lexp''))
+    putStrLn ("Result " ++ (show n) ++ ": " ++ (show lexp'))
 
 -- Given a filename and function for reducing lambda expressions,
 -- reduce all valid lambda expressions in the file and output results.
-runProgram :: String -> (Lexp -> IO Lexp) -> IO ()
+runProgram :: String -> (Lexp -> Lexp) -> IO ()
 runProgram fileName reducer = do
     fcontents <- readFile fileName
     let inList = lines fcontents

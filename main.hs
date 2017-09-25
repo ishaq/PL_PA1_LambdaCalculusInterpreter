@@ -56,29 +56,12 @@ freevars (Apply e1 e2)       = (freevars e1)++(freevars e2)
 --    * (e1 e2) or Apply without Lambda: We recursively reduce e1 and e2 in Apply
 --    * \x.(e m) or Lambda with Apply: We can apply an eta conversion
 --    * \x.e or Lambda without Apply: We recursively reduce e in Lambda
-reduce :: Lexp -> IO Lexp
-reduce lexp@(Atom _) = do 
-    --putStrLn("a1 (atom) " ++ (show lexp)); 
-    return lexp -- can't reduce if it's an atom
-reduce lexp@(Apply (Lambda x e) e2) = do 
-    exp' <- reduce_helper lexp (beta_reduce x e2 e)
-    --putStrLn("a2 (beta reducible call) " ++ show (lexp) ++ " => " ++ (show exp'))
-    return exp'
-reduce lexp@(Apply e1 e2) = do 
-    a <- reduce e1
-    b <- reduce e2
-    --putStrLn("a3 (simple call) " ++ (show lexp) ++ " => (" ++ (show a) ++ " " ++ (show b) ++ ")")
-    reduce_helper lexp (Apply a b)
-reduce lexp@(Lambda x (Apply e m)) = do
-    exp' <- reduce_helper lexp (eta_convert lexp x e m)
-    --putStrLn("a4 (eta expression) " ++ (show lexp) ++ " => " ++ (show exp'))
-    return exp'
-reduce lexp@(Lambda x e) = do 
-    e' <- reduce e
-    e'' <- reduce_helper lexp (Lambda x e')
-    --putStrLn("a5 (simple lambda) " ++ (show lexp) ++ " => " ++ (show e') ++ " => " ++ (show e''))
-    return e''
-
+reduce :: Lexp -> Lexp
+reduce lexp@(Atom _) = lexp -- can't reduce if it's an atom
+reduce lexp@(Apply (Lambda x e) e2) = reduce_helper lexp (beta_reduce x e2 e)
+reduce lexp@(Apply e1 e2) = reduce_helper lexp (Apply (reduce e1) (reduce e2))
+reduce lexp@(Lambda x (Apply e m)) = reduce_helper lexp (eta_convert lexp x e m)
+reduce lexp@(Lambda x e) = reduce_helper lexp (Lambda x (reduce e))
 
 -- reduce_helper
 -- Arguments:   expr1: expression before reduction
@@ -86,12 +69,12 @@ reduce lexp@(Lambda x e) = do
 -- sometimes calling reduce on an expression results in another reducible expression,
 -- this helper takes care of this scenario, it keeps calling reduce on an expression
 -- until no further reductions are possible
-reduce_helper :: Lexp->Lexp->IO Lexp
-reduce_helper expr1 expr2 = if expr1 == expr2 then return expr2 else do
-        exp' <- reduce expr2 -- here it seems as if there's no further recursion, 
-            -- but recall that 'reduce' calls 'reduce_helper' internally. Therefore
-            -- this code is actually correct
-        return exp'
+reduce_helper :: Lexp->Lexp->Lexp
+reduce_helper expr1 expr2
+    | expr1 == expr2 = expr2
+    | otherwise = reduce expr2  -- here it seems as if there's no further recursion, 
+                                -- but recall that 'reduce' calls 'reduce_helper' 
+                                -- internally. Therefore this code is actually correct
 
 -- beta_reduce
 -- replaces all instances of 'var' with 'val' in 'e'
@@ -155,6 +138,21 @@ main = do
     runProgram filename reduce
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 -- UNUSED FUNCTIONS: You can ignore anything after this line
 -- These functions are not used anymore, these are here because they served
 -- us well in the past. "Honour the dead"
@@ -163,7 +161,7 @@ main = do
 reduce_setup :: Lexp -> IO Lexp
 reduce_setup lexp = do
     let lexp' = (alpha_rename_all lexp 0)
-    lexp'' <- reduce lexp'
+    let lexp'' = reduce lexp'
     putStrLn ((show lexp) ++ " => " ++ (show lexp') ++ " => " ++ (show lexp''))
     return lexp''
 
