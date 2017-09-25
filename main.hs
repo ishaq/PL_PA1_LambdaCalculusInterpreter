@@ -8,10 +8,6 @@ import System.Environment (getArgs)
 -- reduce all valid lambda expressions in the file and output results.
 -- runProgram :: String -> (Lexp -> Lexp) -> IO ()
 
--- NOTE: The following code does what's needed of PA1, However 
--- it is terribly written, primarily because I am still trying to
--- get over the "imperitive thinking".
-
 -- remove and free vars are from lecture sample, and are straight forward.
 --remove
 remove :: (Eq a) => a -> [a] -> [a]
