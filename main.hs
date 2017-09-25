@@ -20,9 +20,6 @@ import System.Environment (getArgs)
 -- NOTE: The following code does what's needed of PA1, However 
 -- it is terribly written, primarily because I am still trying to
 -- get over the "imperitive thinking".
---
--- TODO:
--- * get rid of all the nested parens, use $ and . as appropriate
 
 -- remove and free vars are from lecture sample, and are straight forward.
 --remove
@@ -43,11 +40,11 @@ freevars (Apply e1 e2)       = (freevars e1)++(freevars e2)
 --    * \x.(e m) or Lambda with Apply: We can apply an eta conversion
 --    * \x.e or Lambda without Apply: We recursively reduce e in Lambda
 reduce :: Lexp -> Lexp
-reduce lexp@(Atom _) = lexp -- can't reduce if it's an atom
-reduce lexp@(Apply (Lambda x e) e2) = reduce_helper lexp (beta_reduce x e2 e)
-reduce lexp@(Apply e1 e2) = reduce_helper lexp (Apply (reduce e1) (reduce e2))
-reduce lexp@(Lambda x (Apply e m)) = reduce_helper lexp (eta_convert lexp x e m)
-reduce lexp@(Lambda x e) = reduce_helper lexp (Lambda x (reduce e))
+reduce lexp@(Atom _)                = lexp
+reduce lexp@(Apply (Lambda x e) e2) = reduce_helper lexp $ beta_reduce x e2 e
+reduce lexp@(Apply e1 e2)           = reduce_helper lexp $ Apply (reduce e1) $ reduce e2
+reduce lexp@(Lambda x (Apply e m))  = reduce_helper lexp $ eta_convert lexp x e m
+reduce lexp@(Lambda x e)            = reduce_helper lexp $ Lambda x $ reduce e
 
 -- reduce_helper
 -- Arguments:   expr1: expression before reduction
@@ -58,9 +55,9 @@ reduce lexp@(Lambda x e) = reduce_helper lexp (Lambda x (reduce e))
 reduce_helper :: Lexp->Lexp->Lexp
 reduce_helper expr1 expr2
     | expr1 == expr2 = expr2
-    | otherwise = reduce expr2  -- here it seems as if there's no further recursion, 
-                                -- but recall that 'reduce' calls 'reduce_helper' 
-                                -- internally. Therefore this code is actually correct
+    | otherwise      = reduce expr2  -- here it seems as if there's no further recursion, 
+                                     -- but recall that 'reduce' calls 'reduce_helper' 
+                                     -- internally. Therefore this code is actually correct
 
 -- beta_reduce
 -- replaces all instances of 'var' with 'val' in 'e'
@@ -76,13 +73,13 @@ reduce_helper expr1 expr2
 --    instance of var in expr' are bound to var'
 beta_reduce :: String -> Lexp -> Lexp -> Lexp
 beta_reduce var val e@(Atom v)
-            | var == v = val
-            | otherwise = e
-beta_reduce var val (Apply expr1 expr2) = Apply (beta_reduce var val expr1) (beta_reduce var val expr2)
+            | var == v      = val
+            | otherwise     = e
+beta_reduce var val (Apply expr1 expr2)                     = Apply (beta_reduce var val expr1) $ beta_reduce var val expr2
 beta_reduce var val expr@(Lambda var' expr')
-            | var' /= var && var' `notElem` (freevars val) = Lambda var' (beta_reduce var val expr')
-            | var' /= var && var' `elem` (freevars val) = beta_reduce var val (alpha_rename expr (freevars val))
-            | otherwise = expr 
+            | var' /= var && var' `notElem` (freevars val)  = Lambda var' $ beta_reduce var val expr'
+            | var' /= var && var' `elem` (freevars val)     = beta_reduce var val $ alpha_rename expr $ freevars val
+            | otherwise                                     = expr 
 
 -- eta_convert
 -- Arguments:   lexp: The full expression i.e. \x.(E M)
@@ -94,33 +91,31 @@ beta_reduce var val expr@(Lambda var' expr')
 --  * x is not free in E, we replace the whole expression with just E
 eta_convert :: Lexp->String->Lexp->Lexp->Lexp
 eta_convert lexp x e m@(Atom v)
-            | x /= v = lexp -- no change if variables don't match
-            | x `notElem` (freevars e) = e
-            | otherwise = lexp
-eta_convert lexp x e m = lexp
+            | x /= v                    = lexp -- no change if variables don't match
+            | x `notElem` (freevars e)  = e
+            | otherwise                 = lexp
+eta_convert lexp x e m                  = lexp
 
 -- alpha_rename
 -- Given a lambda expression \x.e, changes x to something that does not appear in bad_names
 -- Arguments:   first argument: the lambda expression
 --              bad_names: list of names that we want to avoid (these are the free variables)
 alpha_rename:: Lexp->[String]->Lexp
-alpha_rename (Lambda x e) bad_names = (Lambda (new_name x bad_names) (beta_reduce x (Atom (new_name x bad_names)) e)) 
-alpha_rename lexp bad_names = lexp
+alpha_rename (Lambda x e) bad_names = Lambda (new_name x bad_names) $ beta_reduce x (Atom $ new_name x bad_names) e
+alpha_rename lexp bad_names         = lexp
 
 -- new_name
 -- returns new name for a lambda variable
 -- Arguments:   x: original name (the one that already apperas in 'bad_names')
 --              bad_names: the names that we want to avoid (freevars)
 new_name :: String->[String]->String
-new_name x bad_names = head (dropWhile (`elem` bad_names) [(x ++ (show i)) | i <- [1..]])
+new_name x bad_names = head $ dropWhile (`elem` bad_names) [x ++ (show i) | i <- [1..]]
 
 
 -- Entry point of program
 main = do
     args <- getArgs
     let filename = case args of { [x] -> x; _ -> "input.lambda" }
-    -- id' simply returns its input, so runProgram will result
-    -- in printing each lambda expression twice. 
     runProgram filename reduce
 
 
