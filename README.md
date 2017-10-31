@@ -22,5 +22,6 @@ If no input file is specified, it uses `input.lambda` as default.
 * Alpha Renaming when required: alpha renaming is done by appending digits to the end of variable name e.g. `y` becomes `y#` where `# = 1,2,3, ...`
 
 ## Known Issues
-* The code needs to be improved, right now it is written with an "imperitive thinking" shoehorned into "functional thinking". Having said that, it does what it is supposed to do and we are confident that it can work with lambda expressions of any length.
+* does not reduce expressions in applicative order. (should be a straight forward fix).
+* The code needs to be improved, right now it is written with an "imperitive thinking" shoehorned into "functional thinking".
 
